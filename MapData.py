@@ -1,52 +1,26 @@
 import tkinter as tk
-from PIL import Image
-from abc import ABC, abstractmethod
+from PIL import Image, ImageTk
 
-class MapData(ABC):
+class MapData:
 
-    def __init__(self, canvas: tk.Canvas, path, color, min, max):
-        self.canvas = canvas
+    def __init__(self, path, color, max, min=0, updateMin=False):
         self.min = min
-        self.max = max        
+        self.max = max
         self.color = color
         self.image = Image.open(path)
         self.width = self.image.width
         self.height = self.image.height
-        self.toCanvas = Image.new("RGB", (self.width, self.height))
+        self.TkImage = ImageTk.PhotoImage(Image.new("RGB", (self.width, self.height)))
         self.data = []
+        self.modifiers = []
 
         # assert that canvas size fits image size
 
         self.populate_data_array()
+        self.dataUpdated = self.data
 
-        
 
-    @abstractmethod
     def populate_data_array(self):
-        pass
-
-    def draw(self):
-        
-
-
-    def update(self):
-        for x in range(self.width):
-            for y in range(self.height):
-
-                datapoint = data[]
-                r = 255.0 * color[0]
-
-                self.image.putpixel()
-
-class ModifierData(MapData):
-    
-    def populate_data_array(self):
-        return super().populate_data_array()
-
-class AbsoluteData(MapData):
-    
-    def populate_data_array(self):
-
         baseImage = list(self.image.getdata())
         diff = self.max - self.min
 
@@ -54,3 +28,68 @@ class AbsoluteData(MapData):
         for value in baseImage:
             self.data[i] = ((value[0] / 255.0) * diff) + min
             i += 1
+
+
+    def updateImage(self):
+        image = Image.new("RGB", (self.width, self.height))
+
+        for i in range(len(self.data)):
+            x = i % self.width
+            y = i // self.width
+            diff = self.max - self.min
+            datapoint = (self.data[i] - self.max) / diff
+
+            r = 255.0 * self.color[0] * datapoint
+            g = 255.0 * self.color[1] * datapoint
+            b = 255.0 * self.color[2] * datapoint
+
+            image.putpixel((x, y), [r, g, b])
+
+        self.TkImage = ImageTk.PhotoImage(image)
+
+    def updateData(self):
+        if self.modifiers != []:
+            self.dataUpdated = self.combineData(self.modifiers)
+            self.updateImage()
+
+    def combineData(self, dataList):
+
+        if not isinstance(dataList, tuple):
+            return dataList.data
+
+        returnList = []
+        populated = False
+
+        operation = dataList[0]
+        match operation:
+            case "+":
+                for dataTuple in dataList:
+                    data = self.combineData(dataTuple)
+                    if populated:
+                        for i in range(len(data)):
+                            returnList[i] += data[i]
+                    elif not populated:
+                        populated = True
+                        for i in range(len(data)):
+                            returnList[i] = data[i]
+            case "*":
+                for dataTuple in dataList:
+                    data = self.combineData(dataTuple)
+                    if populated:
+                        for i in range(len(data)):
+                            returnList[i] *= data[i]
+                    elif not populated:
+                        populated = True
+                        for i in range(len(data)):
+                            returnList[i] = data[i]
+        return returnList
+
+    def setModifiers(self, modifiers):
+        self.modifiers = modifiers
+
+    def setDataToUpdated(self):
+        self.data = self.dataUpdated
+        for element in self.data:
+            self.max = max(element, self.max)
+            if (self.updateMin):
+                self.min = min(element, self.min)
