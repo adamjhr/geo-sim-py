@@ -6,11 +6,12 @@ class MapData:
     def __init__(self, path, color, max, min=0, updateMin=False):
         self.min = min
         self.max = max
+        self.updateMin = updateMin
         self.color = color
         self.image = Image.open(path)
         self.width = self.image.width
         self.height = self.image.height
-        self.TkImage = ImageTk.PhotoImage(Image.new("RGB", (self.width, self.height)))
+        self.image.resize((self.width*10, self.height*10), Image.NEAREST)
         self.data = []
         self.modifiers = []
 
@@ -24,10 +25,8 @@ class MapData:
         baseImage = list(self.image.getdata())
         diff = self.max - self.min
 
-        i = 0
         for value in baseImage:
-            self.data[i] = ((value[0] / 255.0) * diff) + min
-            i += 1
+            self.data.append(((value[0] / 255.0) * diff) + self.min)
 
 
     def updateImage(self):
@@ -39,13 +38,13 @@ class MapData:
             diff = self.max - self.min
             datapoint = (self.data[i] - self.max) / diff
 
-            r = 255.0 * self.color[0] * datapoint
-            g = 255.0 * self.color[1] * datapoint
-            b = 255.0 * self.color[2] * datapoint
+            r = int(255.0 * self.color[0] * datapoint)
+            g = int(255.0 * self.color[1] * datapoint)
+            b = int(255.0 * self.color[2] * datapoint)
 
-            image.putpixel((x, y), [r, g, b])
+            image.putpixel((x, y), (r, g, b))
 
-        self.TkImage = ImageTk.PhotoImage(image)
+        image.resize((self.width*10, self.height*10), Image.NEAREST)
 
     def updateData(self):
         if self.modifiers != []:
@@ -53,6 +52,7 @@ class MapData:
             self.updateImage()
 
     def combineData(self, dataList):
+
 
         if not isinstance(dataList, tuple):
             return dataList.data
@@ -63,25 +63,25 @@ class MapData:
         operation = dataList[0]
         match operation:
             case "+":
-                for dataTuple in dataList:
+                for dataTuple in dataList[1]:
                     data = self.combineData(dataTuple)
                     if populated:
                         for i in range(len(data)):
                             returnList[i] += data[i]
                     elif not populated:
                         populated = True
-                        for i in range(len(data)):
-                            returnList[i] = data[i]
+                        for dataPiece in data:
+                            returnList.append(dataPiece)
             case "*":
-                for dataTuple in dataList:
+                for dataTuple in dataList[1]:
                     data = self.combineData(dataTuple)
                     if populated:
                         for i in range(len(data)):
                             returnList[i] *= data[i]
                     elif not populated:
                         populated = True
-                        for i in range(len(data)):
-                            returnList[i] = data[i]
+                        for dataPiece in data:
+                            returnList.append(dataPiece)
         return returnList
 
     def setModifiers(self, modifiers):
